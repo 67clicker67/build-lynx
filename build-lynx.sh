@@ -635,19 +635,19 @@ cat > "$PROFILE_DIR/user.js" <<'EOF'
 // ==========================================================
 // LYNX BROWSER - PRIVACY / CERTIFICATES
 // ==========================================================
-
 user_pref("security.enterprise_roots.enabled", false);
-user_pref("security.OCSP.enabled", 0);
-user_pref("security.cert_pinning.enforcement_level", 2);
+user_pref("security.cert_pinning.enforcement_level", 0);
+user_pref("security.ssl.enable_ocsp_stapling", false);
 user_pref("privacy.trackingprotection.enabled", true);
 user_pref("privacy.trackingprotection.pbmode.enabled", true);
 user_pref("privacy.trackingprotection.socialtracking.enabled", true);
 user_pref("privacy.partition.network_state", true);
 user_pref("media.peerconnection.enabled", false);
 user_pref("dom.battery.enabled", false);
+user_pref("javascript.enabled", true);
 user_pref("browser.send_pings", false);
-user_pref("network.trr.mode", 2);
-user_pref("network.trr.uri", "https://cloudflare-dns.com/dns-query");
+user_pref("network.trr.mode", 3);
+user_pref("network.trr.uri", "https://cloudflare-dns.com");
 user_pref("network.trr.bootstrapAddress", "1.1.1.1");
 user_pref("network.proxy.type", 0);
 user_pref("browser.sessionstore.resume_from_crash", false);
@@ -702,13 +702,6 @@ mkdir -p "$POLICY_DIR"
 # ==========================================================
 # LYNX - LIMPEZA DO ARMAZENAMENTO DE CERTIFICADOS
 # ==========================================================
-
-echo "Limpando certificados personalizados do perfil..."
-
-rm -f "$PROFILE/cert9.db"
-rm -f "$PROFILE/key4.db"
-rm -f "$PROFILE/cert8.db"
-rm -f "$PROFILE/key3.db"
 
 # Remove possíveis arquivos de certificados importados
 rm -f "$PROFILE/"*.pem 2>/dev/null || true
