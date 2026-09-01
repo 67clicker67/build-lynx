@@ -2,7 +2,8 @@
 set -euo pipefail
 
 # ==========================================================
-#                 LYNX BROWSER - BUILD
+#                    LYNX BROWSER
+#                 BUILD SCRIPT - LINUX
 # ==========================================================
 
 APP="LynxBrowser"
@@ -10,13 +11,22 @@ ARCH="x86_64"
 
 ROOT="$PWD"
 WORK="$ROOT/lynx-build"
+APP_DIR="$WORK/$APP"
+
 OUT="$ROOT/${APP}-Linux-${ARCH}.tar.gz"
-INSTALL_DIR="$WORK/$APP"
+LOCAL_INSTALL="$ROOT/$APP"
 
 LOGO="$ROOT/lynx-logo.png"
 
+FIREFOX_URL="https://download.mozilla.org/?product=firefox-latest-ssl&os=linux64&lang=pt-BR"
+
+# ==========================================================
+# CABEÇALHO
+# ==========================================================
+
+echo
 echo "========================================="
-echo "        LYNX BROWSER - BUILD"
+echo "          LYNX BROWSER - BUILD"
 echo "========================================="
 echo
 
@@ -24,55 +34,84 @@ echo
 # DEPENDÊNCIAS
 # ==========================================================
 
-for cmd in curl tar base64 zip sed grep find; do
+REQUIRED_COMMANDS=(
+    curl
+    tar
+    base64
+    zip
+    sed
+    grep
+    find
+    readlink
+)
+
+for cmd in "${REQUIRED_COMMANDS[@]}"; do
+
     if ! command -v "$cmd" >/dev/null 2>&1; then
-        echo "Erro: dependência não encontrada: $cmd"
+
+        echo "ERRO: comando necessário não encontrado:"
+        echo "  $cmd"
+        echo
+
         exit 1
     fi
+
 done
 
 # ==========================================================
 # LIMPEZA
 # ==========================================================
 
+echo "[1/8] Preparando diretórios..."
+
 rm -rf "$WORK"
+rm -rf "$LOCAL_INSTALL"
 
 mkdir -p \
-    "$INSTALL_DIR/browser" \
-    "$INSTALL_DIR/profile" \
-    "$INSTALL_DIR/config"
+    "$APP_DIR/browser" \
+    "$APP_DIR/profile" \
+    "$APP_DIR/config" \
+    "$APP_DIR/config/icons"
 
 # ==========================================================
 # LOGO
 # ==========================================================
 
+echo "[2/8] Preparando logo..."
+
 if [ ! -f "$LOGO" ]; then
-    echo "Baixando logo do Lynx..."
+
+    echo "Logo não encontrada."
+    echo "Baixando..."
 
     curl -fL \
-        "https://raw.githubusercontent.com/Pax0102/img/main/1.png" \
+        "$LOGO_URL" \
         -o "$LOGO"
+
 fi
 
 if [ ! -s "$LOGO" ]; then
-    echo "Erro: não foi possível obter a logo."
+
+    echo "ERRO: logo inválida ou download falhou."
     exit 1
+
 fi
 
-echo "Logo: $LOGO"
+cp \
+    "$LOGO" \
+    "$APP_DIR/config/icons/lynx-logo.png"
 
 LOGO_B64="$(base64 -w 0 "$LOGO")"
 
-cp "$LOGO" "$INSTALL_DIR/config/lynx-logo.png"
-
 # ==========================================================
-# HOME PAGE
+# HOME.HTML
 # ==========================================================
 
-echo "Criando página inicial..."
+echo "[3/8] Criando interface do Lynx..."
 
-cat > "$INSTALL_DIR/config/home.html" <<HOME_EOF
+cat > "$APP_DIR/config/home.html" <<HOME_EOF
 <!DOCTYPE html>
+
 <html lang="pt-BR">
 
 <head>
@@ -152,18 +191,6 @@ body {
     font-family: var(--font-body);
 }
 
-@media(prefers-reduced-motion:reduce) {
-
-    *,
-    *::before,
-    *::after {
-
-        animation-duration: .001ms !important;
-        animation-iteration-count: 1 !important;
-        transition-duration: .001ms !important;
-    }
-}
-
 /* ==========================================================
    BACKGROUND
    ========================================================== */
@@ -174,6 +201,7 @@ body {
     inset: 0;
 
     overflow: hidden;
+
     pointer-events: none;
 
     z-index: 0;
@@ -212,7 +240,8 @@ body {
             transparent 70%
         );
 
-    transition: background .08s linear;
+    transition:
+        background .08s linear;
 }
 
 .hairlines {
@@ -615,7 +644,7 @@ h1 b {
 
 .search-box {
 
-    width: min(620px, 86vw);
+    width: min(620px,86vw);
 
     margin-top: 34px;
 
@@ -680,8 +709,6 @@ h1 b {
             100% 100%,
             0 0
         );
-
-    opacity: .9;
 }
 
 .search {
@@ -774,7 +801,7 @@ h1 b {
 
     justify-content: center;
 
-    width: min(620px, 86vw);
+    width: min(620px,86vw);
 }
 
 .shortcut {
@@ -958,168 +985,184 @@ h1 b {
 
 <div id="app">
 
-    <nav
-        class="navbar reveal"
-        style="animation-delay:.05s"
-    >
+<nav
+    class="navbar reveal"
+    style="animation-delay:.05s"
+>
 
-        <div class="brand">
+    <div class="brand">
 
-            <img
-                class="brand-mark"
-                src="data:image/png;base64,${LOGO_B64}"
-                alt="LX logo"
-            >
-
-            <div class="brand-name">
-                Lynx <b>Browser</b>
-            </div>
-
-        </div>
-
-        <div class="nav-right">
-
-            <div
-                class="pill clock"
-                id="clock"
-            >
-                --:--:--
-            </div>
-
-            <div class="pill status">
-
-                <span class="dot"></span>
-
-                Navegação protegida
-
-            </div>
-
-        </div>
-
-    </nav>
-
-    <main class="main">
-
-        <div
-            class="logo-stage reveal"
-            style="animation-delay:.15s"
+        <img
+            class="brand-mark"
+            src="data:image/png;base64,${LOGO_B64}"
+            alt="LX logo"
         >
 
-            <div class="logo-pedestal"></div>
-
-            <img
-                class="logo-img"
-                src="data:image/png;base64,${LOGO_B64}"
-                alt="LX logo"
-            >
-
-        </div>
-
-        <h1
-            class="reveal"
-            style="animation-delay:.22s"
-        >
-            Bem-vindo ao <b>Lynx</b>
-        </h1>
-
-        <p
-            class="subtitle reveal"
-            style="animation-delay:.28s"
-        >
-            Navegue rápido. Navegue do seu jeito.
-        </p>
-
-        <div
-            class="search-box reveal"
-            style="animation-delay:.34s"
-        >
-
-            <div class="search-frame">
-
-                <div class="search-icon">
-                    ⌕
-                </div>
-
-                <input
-                    class="search"
-                    id="search"
-                    type="text"
-                    placeholder="Pesquise na web ou digite um endereço..."
-                    autocomplete="off"
-                    autofocus
-                >
-
-                <div class="search-enter">
-                    ENTER
-                </div>
-
-            </div>
-
-        </div>
-
-        <div
-            class="shortcuts reveal"
-            style="animation-delay:.4s"
-        >
-
-            <div
-                class="shortcut"
-                tabindex="0"
-                onclick="abrir('https://duckduckgo.com')"
-            >
-                <span class="shortcut-icon">🔎</span>
-                DuckDuckGo
-            </div>
-
-            <div
-                class="shortcut"
-                tabindex="0"
-                onclick="abrir('https://www.youtube.com')"
-            >
-                <span class="shortcut-icon">▶</span>
-                YouTube
-            </div>
-
-            <div
-                class="shortcut"
-                tabindex="0"
-                onclick="abrir('https://www.tiktok.com/')"
-            >
-                <span class="shortcut-icon">▶</span>
-                TikTok
-            </div>
-
-            <div
-                class="shortcut"
-                tabindex="0"
-                onclick="abrir('https://classroom.google.com/')"
-            >
-                <span class="shortcut-icon">⌘</span>
-                Classroom
-            </div>
-
-        </div>
-
-    </main>
-
-    <div
-        class="footer reveal"
-        style="animation-delay:.46s"
-    >
-
-        <div class="footer-rule"></div>
-
-        <div>
-            LYNX BROWSER
-            <b>·</b>
-            RÁPIDO
-            ·
-            PRIVADO
-            ·
-            DIRETO
+        <div class="brand-name">
+            Lynx <b>Browser</b>
         </div>
 
     </div>
+
+    <div class="nav-right">
+
+        <div
+            class="pill clock"
+            id="clock"
+        >
+            --:--:--
+        </div>
+
+        <div class="pill status">
+
+            <span class="dot"></span>
+
+            Navegação protegida
+
+        </div>
+
+    </div>
+
+</nav>
+
+<main class="main">
+
+    <div
+        class="logo-stage reveal"
+        style="animation-delay:.15s"
+    >
+
+        <div class="logo-pedestal"></div>
+
+        <img
+            class="logo-img"
+            src="data:image/png;base64,${LOGO_B64}"
+            alt="LX logo"
+        >
+
+    </div>
+
+    <h1
+        class="reveal"
+        style="animation-delay:.22s"
+    >
+        Bem-vindo ao <b>Lynx</b>
+    </h1>
+
+    <p
+        class="subtitle reveal"
+        style="animation-delay:.28s"
+    >
+        Navegue rápido. Navegue do seu jeito.
+    </p>
+
+    <div
+        class="search-box reveal"
+        style="animation-delay:.34s"
+    >
+
+        <div class="search-frame">
+
+            <div class="search-icon">
+                ⌕
+            </div>
+
+            <input
+                class="search"
+                id="search"
+                type="text"
+                placeholder="Pesquise na web ou digite um endereço..."
+                autocomplete="off"
+                autofocus
+            >
+
+            <div class="search-enter">
+                ENTER
+            </div>
+
+        </div>
+
+    </div>
+
+    <div
+        class="shortcuts reveal"
+        style="animation-delay:.4s"
+    >
+
+        <div
+            class="shortcut"
+            tabindex="0"
+            onclick="abrir('https://duckduckgo.com')"
+        >
+
+            <span class="shortcut-icon">
+                🔎
+            </span>
+
+            DuckDuckGo
+
+        </div>
+
+        <div
+            class="shortcut"
+            tabindex="0"
+            onclick="abrir('https://www.youtube.com')"
+        >
+
+            <span class="shortcut-icon">
+                ▶
+            </span>
+
+            YouTube
+
+        </div>
+
+        <div
+            class="shortcut"
+            tabindex="0"
+            onclick="abrir('https://www.tiktok.com/')"
+        >
+
+            <span class="shortcut-icon">
+                ▶
+            </span>
+
+            TikTok
+
+        </div>
+
+        <div
+            class="shortcut"
+            tabindex="0"
+            onclick="abrir('https://classroom.google.com/')"
+        >
+
+            <span class="shortcut-icon">
+                ⌘
+            </span>
+
+            Classroom
+
+        </div>
+
+    </div>
+
+</main>
+
+<div
+    class="footer reveal"
+    style="animation-delay:.46s"
+>
+
+    <div class="footer-rule"></div>
+
+    <div>
+        LYNX BROWSER
+        <b>·</b>
+        RÁPIDO · PRIVADO · DIRETO
+    </div>
+
+</div>
 
 </div>
 
@@ -1133,21 +1176,16 @@ function atualizarRelogio() {
 
     const agora = new Date();
 
-    const opcoes = {
-
-        timeZone: "America/Sao_Paulo",
-
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-
-        hour12: false
-    };
-
     const hora =
         agora.toLocaleTimeString(
             "pt-BR",
-            opcoes
+            {
+                timeZone: "America/Sao_Paulo",
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit",
+                hour12: false
+            }
         );
 
     document.getElementById("clock")
@@ -1163,7 +1201,7 @@ setInterval(
 
 
 /* ==========================================================
-   EFEITO DO MOUSE
+   MOUSE
    ========================================================== */
 
 const root =
@@ -1180,14 +1218,14 @@ if (!reduceMotion) {
         "mousemove",
         function(e) {
 
-            const xp =
+            const x =
                 (
                     e.clientX /
                     window.innerWidth *
                     100
                 ).toFixed(2);
 
-            const yp =
+            const y =
                 (
                     e.clientY /
                     window.innerHeight *
@@ -1196,12 +1234,12 @@ if (!reduceMotion) {
 
             root.style.setProperty(
                 "--mx",
-                xp + "%"
+                x + "%"
             );
 
             root.style.setProperty(
                 "--my",
-                yp + "%"
+                y + "%"
             );
         }
     );
@@ -1214,11 +1252,950 @@ if (!reduceMotion) {
 
 function pesquisar() {
 
-    const campo =
+    const input =
         document.getElementById("search");
 
     const texto =
-        campo.value.trim();
+        input.value.trim();
 
     if (!texto) {
-        ret
+        return;
+    }
+
+    let destino;
+
+    if (
+        texto.startsWith("http://") ||
+        texto.startsWith("https://")
+    ) {
+
+        destino = texto;
+
+    } else if (
+        texto.includes(".") &&
+        !texto.includes(" ")
+    ) {
+
+        destino =
+            "https://" + texto;
+
+    } else {
+
+        destino =
+            "https://duckduckgo.com/?q=" +
+            encodeURIComponent(texto);
+    }
+
+    window.location.href =
+        destino;
+}
+
+
+/* ==========================================================
+   ENTER
+   ========================================================== */
+
+document
+    .getElementById("search")
+    .addEventListener(
+        "keydown",
+        function(event) {
+
+            if (event.key === "Enter") {
+
+                pesquisar();
+            }
+        }
+    );
+
+
+/* ==========================================================
+   ATALHOS
+   ========================================================== */
+
+function abrir(url) {
+
+    window.location.href = url;
+}
+
+</script>
+
+</body>
+
+</html>
+HOME_EOF
+
+# ==========================================================
+# EXTENSÃO NEW TAB
+# ==========================================================
+
+echo "[4/8] Criando extensão New Tab..."
+
+NEW_TAB="$APP_DIR/config/lynx-newtab"
+
+mkdir -p "$NEW_TAB"
+
+cat > "$NEW_TAB/manifest.json" <<'EOF'
+{
+    "manifest_version": 2,
+    "name": "Lynx New Tab",
+    "version": "1.0.0",
+    "description": "Nova aba do Lynx Browser.",
+    "applications": {
+        "gecko": {
+            "id": "lynx-newtab@lynxbrowser"
+        }
+    },
+    "chrome_url_overrides": {
+        "newtab": "home.html"
+    }
+}
+EOF
+
+cp \
+    "$APP_DIR/config/home.html" \
+    "$NEW_TAB/home.html"
+
+XPI="$APP_DIR/config/lynx-newtab.xpi"
+
+(
+    cd "$NEW_TAB"
+    zip -qr "$XPI" .
+)
+
+rm -rf "$NEW_TAB"
+
+# ==========================================================
+# FIREFOX
+# ==========================================================
+
+echo "[5/8] Baixando Firefox oficial..."
+
+curl -fL \
+    "$FIREFOX_URL" \
+    -o "$WORK/firefox.tar.xz"
+
+if [ ! -s "$WORK/firefox.tar.xz" ]; then
+
+    echo "ERRO: download do Firefox falhou."
+    exit 1
+
+fi
+
+echo "Extraindo..."
+
+tar \
+    -xJf "$WORK/firefox.tar.xz" \
+    -C "$WORK"
+
+if [ ! -d "$WORK/firefox" ]; then
+
+    echo "ERRO: diretório Firefox não encontrado."
+    exit 1
+
+fi
+
+mv \
+    "$WORK/firefox" \
+    "$APP_DIR/browser/firefox"
+
+rm -f "$WORK/firefox.tar.xz"
+
+FIREFOX="$APP_DIR/browser/firefox/firefox"
+
+if [ ! -x "$FIREFOX" ]; then
+
+    echo "ERRO: executável Firefox não encontrado."
+    exit 1
+
+fi
+
+# ==========================================================
+# CONFIGURAÇÃO VPN
+# ==========================================================
+
+echo "[6/8] Criando configuração de rede..."
+
+cat > "$APP_DIR/config/vpn.conf" <<'EOF'
+# ==========================================================
+# LYNX BROWSER - SOCKS5
+# ==========================================================
+
+# 0 = desativado
+# 1 = ativado
+
+ENABLED=0
+
+HOST=127.0.0.1
+PORT=1080
+
+USERNAME=
+PASSWORD=
+EOF
+
+# ==========================================================
+# EXECUTÁVEL
+# ==========================================================
+
+echo "[7/8] Criando executável Lynx..."
+
+cat > "$APP_DIR/lynx" <<'LYNX_EOF'
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+# ==========================================================
+# LYNX BROWSER
+# ==========================================================
+
+BASE="$(cd "$(dirname "$0")" && pwd)"
+
+FIREFOX="$BASE/browser/firefox/firefox"
+
+PROFILE="$BASE/profile"
+
+HOME_PAGE="$BASE/config/home.html"
+
+VPN_CONF="$BASE/config/vpn.conf"
+
+# ==========================================================
+# VERIFICAÇÕES
+# ==========================================================
+
+if [ ! -x "$FIREFOX" ]; then
+
+    echo "ERRO: Firefox não encontrado:"
+    echo "$FIREFOX"
+
+    exit 1
+
+fi
+
+if [ ! -f "$HOME_PAGE" ]; then
+
+    echo "ERRO: página inicial não encontrada."
+
+    exit 1
+
+fi
+
+mkdir -p "$PROFILE"
+
+# ==========================================================
+# CONFIGURAÇÃO DO PROXY
+# ==========================================================
+
+PROXY_ENABLED=0
+PROXY_HOST="127.0.0.1"
+PROXY_PORT="1080"
+
+if [ -f "$VPN_CONF" ]; then
+
+    # shellcheck disable=SC1090
+    source "$VPN_CONF"
+
+    PROXY_ENABLED="${ENABLED:-0}"
+    PROXY_HOST="${HOST:-127.0.0.1}"
+    PROXY_PORT="${PORT:-1080}"
+
+fi
+
+# ==========================================================
+# USER.JS
+# ==========================================================
+
+cat > "$PROFILE/user.js" <<'USERJS_EOF'
+/* ==========================================================
+   LYNX BROWSER
+   ========================================================== */
+
+
+/*
+ * ==========================================================
+ * DNS
+ * ==========================================================
+ *
+ * DoH DESATIVADO.
+ *
+ * O Firefox utilizará o DNS normal do sistema.
+ *
+ * Isso elimina uma fonte comum de problemas TLS/DNS
+ * durante o diagnóstico de PR_END_OF_FILE_ERROR.
+ */
+
+user_pref(
+    "network.trr.mode",
+    5
+);
+
+user_pref(
+    "network.trr.uri",
+    ""
+);
+
+user_pref(
+    "network.trr.bootstrapAddress",
+    ""
+);
+
+
+/*
+ * ==========================================================
+ * TLS
+ * ==========================================================
+ *
+ * Configurações normais do Firefox.
+ *
+ * Não desabilitamos certificate pinning.
+ */
+
+user_pref(
+    "security.cert_pinning.enforcement_level",
+    2
+);
+
+user_pref(
+    "security.enterprise_roots.enabled",
+    false
+);
+
+
+/*
+ * ==========================================================
+ * PRIVACIDADE
+ * ==========================================================
+ */
+
+user_pref(
+    "privacy.trackingprotection.enabled",
+    true
+);
+
+user_pref(
+    "privacy.trackingprotection.pbmode.enabled",
+    true
+);
+
+user_pref(
+    "privacy.trackingprotection.socialtracking.enabled",
+    true
+);
+
+user_pref(
+    "privacy.partition.network_state",
+    true
+);
+
+user_pref(
+    "media.peerconnection.enabled",
+    false
+);
+
+user_pref(
+    "dom.battery.enabled",
+    false
+);
+
+user_pref(
+    "browser.send_pings",
+    false
+);
+
+
+/*
+ * ==========================================================
+ * INTERFACE
+ * ==========================================================
+ */
+
+user_pref(
+    "toolkit.legacyUserProfileCustomizations.stylesheets",
+    true
+);
+
+user_pref(
+    "extensions.activeThemeID",
+    "firefox-compact-dark@mozilla.org"
+);
+
+
+/*
+ * ==========================================================
+ * STARTUP
+ * ==========================================================
+ */
+
+user_pref(
+    "browser.startup.firstrunSkipsHomepage",
+    true
+);
+
+user_pref(
+    "browser.disableResetPrompt",
+    true
+);
+
+user_pref(
+    "browser.shell.checkDefaultBrowser",
+    false
+);
+
+user_pref(
+    "browser.warnOnQuit",
+    false
+);
+
+user_pref(
+    "browser.sessionstore.resume_from_crash",
+    false
+);
+
+user_pref(
+    "startup.homepage_welcome_url",
+    ""
+);
+
+user_pref(
+    "startup.homepage_welcome_url.additional",
+    ""
+);
+
+user_pref(
+    "startup.homepage_override_url",
+    ""
+);
+
+user_pref(
+    "browser.startup.upgradeDialog.enabled",
+    false
+);
+
+USERJS_EOF
+
+# ==========================================================
+# PROXY
+# ==========================================================
+
+if [ "$PROXY_ENABLED" = "1" ]; then
+
+    echo "SOCKS5: ATIVADO"
+    echo "Servidor: $PROXY_HOST:$PROXY_PORT"
+
+    cat >> "$PROFILE/user.js" <<USERJS_EOF
+
+/*
+ * SOCKS5
+ */
+
+user_pref(
+    "network.proxy.type",
+    1
+);
+
+user_pref(
+    "network.proxy.socks",
+    "$PROXY_HOST"
+);
+
+user_pref(
+    "network.proxy.socks_port",
+    $PROXY_PORT
+);
+
+user_pref(
+    "network.proxy.socks_version",
+    5
+);
+
+user_pref(
+    "network.proxy.socks_remote_dns",
+    true
+);
+
+USERJS_EOF
+
+else
+
+    echo "SOCKS5: DESATIVADO"
+
+    cat >> "$PROFILE/user.js" <<'USERJS_EOF'
+
+/*
+ * Sem proxy.
+ */
+
+user_pref(
+    "network.proxy.type",
+    0
+);
+
+user_pref(
+    "network.proxy.no_proxies_on",
+    ""
+);
+
+USERJS_EOF
+
+fi
+
+# ==========================================================
+# NEW TAB
+# ==========================================================
+
+NEW_TAB_XPI="$BASE/config/lynx-newtab.xpi"
+
+if [ -f "$NEW_TAB_XPI" ]; then
+
+    NEW_TAB_XPI_ABS="$(readlink -f "$NEW_TAB_XPI")"
+
+    POLICY_DIR="$BASE/browser/firefox/distribution"
+
+    POLICY_FILE="$POLICY_DIR/policies.json"
+
+    mkdir -p "$POLICY_DIR"
+
+    cat > "$POLICY_FILE" <<POLICY_EOF
+{
+    "policies": {
+        "ExtensionSettings": {
+            "lynx-newtab@lynxbrowser": {
+                "installation_mode": "force_installed",
+                "install_url": "file://$NEW_TAB_XPI_ABS",
+                "updates_disabled": true
+            }
+        }
+    }
+}
+POLICY_EOF
+
+fi
+
+# ==========================================================
+# CHROME CSS
+# ==========================================================
+
+mkdir -p "$PROFILE/chrome"
+
+cat > "$PROFILE/chrome/userChrome.css" <<'CSS_EOF'
+/*
+ * Lynx Browser
+ *
+ * Alterações mínimas para evitar incompatibilidades
+ * com versões futuras do Firefox.
+ */
+
+#aboutHeaderLearnMore {
+    display: none !important;
+}
+CSS_EOF
+
+# ==========================================================
+# INFORMAÇÕES
+# ==========================================================
+
+echo
+echo "========================================="
+echo "            LYNX BROWSER"
+echo "========================================="
+echo
+echo "TLS: padrão Firefox"
+echo "Certificate Pinning: ATIVADO"
+echo "DoH: DESATIVADO"
+echo "DNS: sistema"
+echo "SOCKS5: $([ "$PROXY_ENABLED" = "1" ] && echo ATIVADO || echo DESATIVADO)"
+echo
+echo "========================================="
+echo
+
+# ==========================================================
+# EXECUTAR
+# ==========================================================
+
+exec "$FIREFOX" \
+    --no-remote \
+    --profile "$PROFILE" \
+    "$HOME_PAGE" \
+    "$@"
+
+LYNX_EOF
+
+chmod +x "$APP_DIR/lynx"
+
+# ==========================================================
+# VPN SCRIPT
+# ==========================================================
+
+cat > "$APP_DIR/vpn" <<'VPN_EOF'
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+BASE="$(cd "$(dirname "$0")" && pwd)"
+
+CONF="$BASE/config/vpn.conf"
+
+if [ ! -f "$CONF" ]; then
+
+    echo "Configuração não encontrada:"
+    echo "$CONF"
+
+    exit 1
+
+fi
+
+case "${1:-status}" in
+
+    on)
+
+        sed -i \
+            's/^ENABLED=.*/ENABLED=1/' \
+            "$CONF"
+
+        echo
+        echo "SOCKS5 ATIVADO."
+        echo "Reinicie o Lynx Browser."
+        echo
+
+        ;;
+
+    off)
+
+        sed -i \
+            's/^ENABLED=.*/ENABLED=0/' \
+            "$CONF"
+
+        echo
+        echo "SOCKS5 DESATIVADO."
+        echo "Reinicie o Lynx Browser."
+        echo
+
+        ;;
+
+    status)
+
+        # shellcheck disable=SC1090
+        source "$CONF"
+
+        if [ "${ENABLED:-0}" = "1" ]; then
+
+            echo
+            echo "SOCKS5: ATIVADO"
+            echo "Servidor: ${HOST}:${PORT}"
+            echo
+
+        else
+
+            echo
+            echo "SOCKS5: DESATIVADO"
+            echo
+
+        fi
+
+        ;;
+
+    config)
+
+        if command -v nano >/dev/null 2>&1; then
+
+            nano "$CONF"
+
+        elif command -v vi >/dev/null 2>&1; then
+
+            vi "$CONF"
+
+        else
+
+            echo "Nenhum editor encontrado."
+            exit 1
+
+        fi
+
+        ;;
+
+    *)
+
+        echo
+        echo "Uso:"
+        echo
+        echo "  ./vpn on"
+        echo "  ./vpn off"
+        echo "  ./vpn status"
+        echo "  ./vpn config"
+        echo
+
+        exit 1
+
+        ;;
+
+esac
+VPN_EOF
+
+chmod +x "$APP_DIR/vpn"
+
+# ==========================================================
+# START.SH
+# ==========================================================
+
+cat > "$APP_DIR/start.sh" <<'START_EOF'
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+BASE="$(cd "$(dirname "$0")" && pwd)"
+
+exec "$BASE/lynx" "$@"
+START_EOF
+
+chmod +x "$APP_DIR/start.sh"
+
+# ==========================================================
+# TESTE
+# ==========================================================
+
+cat > "$APP_DIR/test.sh" <<'TEST_EOF'
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+BASE="$(cd "$(dirname "$0")" && pwd)"
+
+FIREFOX="$BASE/browser/firefox/firefox"
+
+TEST_PROFILE="/tmp/lynx-clean-profile-$$"
+
+cleanup() {
+
+    rm -rf "$TEST_PROFILE"
+
+}
+
+trap cleanup EXIT
+
+mkdir -p "$TEST_PROFILE"
+
+cat > "$TEST_PROFILE/user.js" <<'EOF'
+/*
+ * Perfil de diagnóstico.
+ *
+ * Sem DoH.
+ * Sem proxy.
+ */
+
+user_pref("network.trr.mode", 5);
+user_pref("network.trr.uri", "");
+user_pref("network.proxy.type", 0);
+EOF
+
+echo
+echo "========================================="
+echo "        LYNX - TESTE DE CONEXÃO"
+echo "========================================="
+echo
+echo "DoH: DESATIVADO"
+echo "Proxy: DESATIVADO"
+echo "Perfil: TEMPORÁRIO"
+echo
+echo "Abrindo https://example.com ..."
+echo
+
+exec "$FIREFOX" \
+    --no-remote \
+    --profile "$TEST_PROFILE" \
+    "https://example.com"
+
+TEST_EOF
+
+chmod +x "$APP_DIR/test.sh"
+
+# ==========================================================
+# DESKTOP
+# ==========================================================
+
+echo "[8/8] Criando atalhos e documentação..."
+
+cat > "$APP_DIR/Lynx Browser.desktop" <<DESKTOP_EOF
+[Desktop Entry]
+
+Version=1.0
+
+Type=Application
+
+Name=Lynx Browser
+GenericName=Web Browser
+Comment=Lynx Browser
+
+Exec=$LOCAL_INSTALL/start.sh
+Path=$LOCAL_INSTALL
+
+Terminal=false
+
+StartupNotify=true
+StartupWMClass=LynxBrowser
+
+Icon=$LOCAL_INSTALL/config/icons/lynx-logo.png
+
+Categories=Network;WebBrowser;
+
+Keywords=browser;internet;web;lynx;
+DESKTOP_EOF
+
+chmod +x "$APP_DIR/Lynx Browser.desktop"
+
+# ==========================================================
+# README
+# ==========================================================
+
+cat > "$APP_DIR/README.txt" <<'README_EOF'
+====================================================
+                 LYNX BROWSER
+====================================================
+
+Navegador Linux portátil baseado no Firefox.
+
+====================================================
+EXECUTAR
+====================================================
+
+    ./start.sh
+
+
+====================================================
+TESTE LIMPO
+====================================================
+
+Para testar a conexão sem as configurações
+normais do Lynx:
+
+    ./test.sh
+
+
+====================================================
+SOCKS5
+====================================================
+
+Ver estado:
+
+    ./vpn status
+
+Ativar:
+
+    ./vpn on
+
+Desativar:
+
+    ./vpn off
+
+Editar:
+
+    ./vpn config
+
+
+O SOCKS5 fica DESATIVADO por padrão.
+
+
+====================================================
+PR_END_OF_FILE_ERROR
+====================================================
+
+O Lynx foi configurado para:
+
+- DoH desativado
+- DNS do sistema
+- Proxy desativado
+- TLS padrão do Firefox
+- Certificate Pinning ativado
+
+Se o erro continuar mesmo com:
+
+    ./test.sh
+
+o problema provavelmente não está no HTML
+ou na interface do Lynx.
+
+Verifique:
+
+- VPN do sistema
+- proxy do sistema
+- firewall
+- antivírus
+- DNS
+- rede
+- inspeção HTTPS
+- relógio/data do sistema
+
+
+====================================================
+README_EOF
+
+# ==========================================================
+# EMPACOTAMENTO
+# ==========================================================
+
+echo
+echo "========================================="
+echo "          EMPACOTANDO LYNX"
+echo "========================================="
+echo
+
+cd "$WORK"
+
+tar \
+    -czf "$OUT" \
+    "$APP"
+
+if [ ! -s "$OUT" ]; then
+
+    echo "ERRO: arquivo final não foi criado."
+    exit 1
+
+fi
+
+echo
+echo "Build criado:"
+echo
+echo "  $OUT"
+echo
+
+du -h "$OUT"
+
+# ==========================================================
+# INSTALAÇÃO LOCAL
+# ==========================================================
+
+echo
+echo "Instalando localmente..."
+
+cd "$ROOT"
+
+tar \
+    -xzf "$OUT"
+
+# ==========================================================
+# FINAL
+# ==========================================================
+
+echo
+echo "========================================="
+echo "       LYNX BROWSER PRONTO"
+echo "========================================="
+echo
+echo "Diretório:"
+echo
+echo "  $LOCAL_INSTALL"
+echo
+echo "Executável:"
+echo
+echo "  $LOCAL_INSTALL/start.sh"
+echo
+echo "Teste:"
+echo
+echo "  $LOCAL_INSTALL/test.sh"
+echo
+echo "========================================="
+echo
+
+# ==========================================================
+# INICIAR
+# ==========================================================
+
+exec "$LOCAL_INSTALL/start.sh"
