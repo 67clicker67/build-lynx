@@ -1,11 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# ==========================================================
-#                    LYNX BROWSER
-#                 BUILD SCRIPT - LINUX
-# ==========================================================
-
 APP="LynxBrowser"
 ARCH="x86_64"
 
@@ -20,19 +15,11 @@ LOGO="$ROOT/lynx-logo.png"
 
 FIREFOX_URL="https://download.mozilla.org/?product=firefox-latest-ssl&os=linux64&lang=pt-BR"
 
-# ==========================================================
-# CABEÇALHO
-# ==========================================================
-
 echo
 echo "========================================="
 echo "          LYNX BROWSER - BUILD"
 echo "========================================="
 echo
-
-# ==========================================================
-# DEPENDÊNCIAS
-# ==========================================================
 
 REQUIRED_COMMANDS=(
     curl
@@ -58,9 +45,99 @@ for cmd in "${REQUIRED_COMMANDS[@]}"; do
 
 done
 
-# ==========================================================
-# LIMPEZA
-# ==========================================================
+download_parallel() {
+
+    local url="$1"
+    local out="$2"
+    local parts="${3:-16}"
+
+    echo "Verificando servidor..."
+
+    local headers
+    headers="$(curl -sIL "$url")"
+
+    local size
+    size="$(
+        echo "$headers" \
+            | grep -i '^content-length:' \
+            | tail -1 \
+            | tr -d '\r' \
+            | awk '{print $2}'
+    )"
+
+    local accept_ranges
+    accept_ranges="$(
+        echo "$headers" \
+            | grep -i '^accept-ranges: bytes' \
+            || true
+    )"
+
+    if [ -z "${size:-}" ] || [ -z "$accept_ranges" ]; then
+
+        echo "Servidor não suporta download em partes."
+        echo "Baixando normalmente..."
+
+        curl -fL "$url" -o "$out"
+
+        return
+    fi
+
+    echo "Tamanho: $size bytes"
+    echo "Baixando em $parts partes simultâneas..."
+
+    local tmpdir
+    tmpdir="$(mktemp -d)"
+
+    local chunk=$(( size / parts ))
+    local pids=()
+
+    for i in $(seq 0 $((parts - 1))); do
+
+        local start=$(( i * chunk ))
+        local end=$(( start + chunk - 1 ))
+
+        # última parte pega o resto (arredondamento)
+        if [ "$i" -eq $((parts - 1)) ]; then
+            end=$(( size - 1 ))
+        fi
+
+        curl -fL -s -r "${start}-${end}" -o "$tmpdir/part_$(printf '%04d' "$i")" "$url" &
+
+        pids+=("$!")
+
+    done
+
+    local fail=0
+
+    for pid in "${pids[@]}"; do
+
+        if ! wait "$pid"; then
+            fail=1
+        fi
+
+    done
+
+    if [ "$fail" -eq 1 ]; then
+
+        echo "Uma ou mais partes falharam. Tentando download normal..."
+
+        rm -rf "$tmpdir"
+
+        curl -fL "$url" -o "$out"
+
+        return
+    fi
+
+    : > "$out"
+
+    for f in "$tmpdir"/part_*; do
+        cat "$f" >> "$out"
+    done
+
+    rm -rf "$tmpdir"
+
+    echo "Download concluído (paralelo): $out"
+}
 
 echo "[1/8] Preparando diretórios..."
 
@@ -72,10 +149,6 @@ mkdir -p \
     "$APP_DIR/profile" \
     "$APP_DIR/config" \
     "$APP_DIR/config/icons"
-
-# ==========================================================
-# LOGO
-# ==========================================================
 
 echo "[2/8] Preparando logo..."
 
@@ -102,10 +175,6 @@ cp \
     "$APP_DIR/config/icons/lynx-logo.png"
 
 LOGO_B64="$(base64 -w 0 "$LOGO")"
-
-# ==========================================================
-# HOME.HTML
-# ==========================================================
 
 echo "[3/8] Criando interface do Lynx..."
 
@@ -327,10 +396,6 @@ body {
     }
 }
 
-/* ==========================================================
-   NAVBAR
-   ========================================================== */
-
 .navbar {
 
     height: 78px;
@@ -464,10 +529,6 @@ body {
     }
 }
 
-/* ==========================================================
-   MAIN
-   ========================================================== */
-
 .main {
 
     flex: 1;
@@ -483,10 +544,6 @@ body {
 
     position: relative;
 }
-
-/* ==========================================================
-   LOGO
-   ========================================================== */
 
 .logo-stage {
 
@@ -603,10 +660,6 @@ body {
     }
 }
 
-/* ==========================================================
-   TITLE
-   ========================================================== */
-
 h1 {
 
     font-family: var(--font-display);
@@ -637,10 +690,6 @@ h1 b {
 
     letter-spacing: .1px;
 }
-
-/* ==========================================================
-   SEARCH
-   ========================================================== */
 
 .search-box {
 
@@ -785,10 +834,6 @@ h1 b {
     pointer-events: none;
 }
 
-/* ==========================================================
-   SHORTCUTS
-   ========================================================== */
-
 .shortcuts {
 
     display: flex;
@@ -876,10 +921,6 @@ h1 b {
     color: var(--blue-bright);
 }
 
-/* ==========================================================
-   FOOTER
-   ========================================================== */
-
 .footer {
 
     padding-bottom: 26px;
@@ -923,10 +964,6 @@ h1 b {
 
     color: #5f7dcf;
 }
-
-/* ==========================================================
-   MOBILE
-   ========================================================== */
 
 @media(max-width:600px) {
 
@@ -1168,10 +1205,6 @@ h1 b {
 
 <script>
 
-/* ==========================================================
-   RELÓGIO
-   ========================================================== */
-
 function atualizarRelogio() {
 
     const agora = new Date();
@@ -1198,11 +1231,6 @@ setInterval(
     atualizarRelogio,
     1000
 );
-
-
-/* ==========================================================
-   MOUSE
-   ========================================================== */
 
 const root =
     document.documentElement;
@@ -1245,11 +1273,6 @@ if (!reduceMotion) {
     );
 }
 
-
-/* ==========================================================
-   PESQUISA
-   ========================================================== */
-
 function pesquisar() {
 
     const input =
@@ -1290,11 +1313,6 @@ function pesquisar() {
         destino;
 }
 
-
-/* ==========================================================
-   ENTER
-   ========================================================== */
-
 document
     .getElementById("search")
     .addEventListener(
@@ -1308,11 +1326,6 @@ document
         }
     );
 
-
-/* ==========================================================
-   ATALHOS
-   ========================================================== */
-
 function abrir(url) {
 
     window.location.href = url;
@@ -1324,10 +1337,6 @@ function abrir(url) {
 
 </html>
 HOME_EOF
-
-# ==========================================================
-# EXTENSÃO NEW TAB
-# ==========================================================
 
 echo "[4/8] Criando extensão New Tab..."
 
@@ -1365,15 +1374,9 @@ XPI="$APP_DIR/config/lynx-newtab.xpi"
 
 rm -rf "$NEW_TAB"
 
-# ==========================================================
-# FIREFOX
-# ==========================================================
+echo "[5/8] Baixando Firefox oficial (paralelo)..."
 
-echo "[5/8] Baixando Firefox oficial..."
-
-curl -fL \
-    "$FIREFOX_URL" \
-    -o "$WORK/firefox.tar.xz"
+download_parallel "$FIREFOX_URL" "$WORK/firefox.tar.xz" 16
 
 if [ ! -s "$WORK/firefox.tar.xz" ]; then
 
@@ -1410,10 +1413,6 @@ if [ ! -x "$FIREFOX" ]; then
 
 fi
 
-# ==========================================================
-# CONFIGURAÇÃO VPN
-# ==========================================================
-
 echo "[6/8] Criando configuração de rede..."
 
 cat > "$APP_DIR/config/vpn.conf" <<'EOF'
@@ -1433,20 +1432,12 @@ USERNAME=
 PASSWORD=
 EOF
 
-# ==========================================================
-# EXECUTÁVEL
-# ==========================================================
-
 echo "[7/8] Criando executável Lynx..."
 
 cat > "$APP_DIR/lynx" <<'LYNX_EOF'
 #!/usr/bin/env bash
 
 set -euo pipefail
-
-# ==========================================================
-# LYNX BROWSER
-# ==========================================================
 
 BASE="$(cd "$(dirname "$0")" && pwd)"
 
@@ -1457,10 +1448,6 @@ PROFILE="$BASE/profile"
 HOME_PAGE="$BASE/config/home.html"
 
 VPN_CONF="$BASE/config/vpn.conf"
-
-# ==========================================================
-# VERIFICAÇÕES
-# ==========================================================
 
 if [ ! -x "$FIREFOX" ]; then
 
@@ -1481,10 +1468,6 @@ fi
 
 mkdir -p "$PROFILE"
 
-# ==========================================================
-# CONFIGURAÇÃO DO PROXY
-# ==========================================================
-
 PROXY_ENABLED=0
 PROXY_HOST="127.0.0.1"
 PROXY_PORT="1080"
@@ -1500,28 +1483,10 @@ if [ -f "$VPN_CONF" ]; then
 
 fi
 
-# ==========================================================
-# USER.JS
-# ==========================================================
-
 cat > "$PROFILE/user.js" <<'USERJS_EOF'
 /* ==========================================================
    LYNX BROWSER
    ========================================================== */
-
-
-/*
- * ==========================================================
- * DNS
- * ==========================================================
- *
- * DoH DESATIVADO.
- *
- * O Firefox utilizará o DNS normal do sistema.
- *
- * Isso elimina uma fonte comum de problemas TLS/DNS
- * durante o diagnóstico de PR_END_OF_FILE_ERROR.
- */
 
 user_pref(
     "network.trr.mode",
@@ -1538,17 +1503,6 @@ user_pref(
     ""
 );
 
-
-/*
- * ==========================================================
- * TLS
- * ==========================================================
- *
- * Configurações normais do Firefox.
- *
- * Não desabilitamos certificate pinning.
- */
-
 user_pref(
     "security.cert_pinning.enforcement_level",
     2
@@ -1558,13 +1512,6 @@ user_pref(
     "security.enterprise_roots.enabled",
     false
 );
-
-
-/*
- * ==========================================================
- * PRIVACIDADE
- * ==========================================================
- */
 
 user_pref(
     "privacy.trackingprotection.enabled",
@@ -1601,13 +1548,6 @@ user_pref(
     false
 );
 
-
-/*
- * ==========================================================
- * INTERFACE
- * ==========================================================
- */
-
 user_pref(
     "toolkit.legacyUserProfileCustomizations.stylesheets",
     true
@@ -1617,13 +1557,6 @@ user_pref(
     "extensions.activeThemeID",
     "firefox-compact-dark@mozilla.org"
 );
-
-
-/*
- * ==========================================================
- * STARTUP
- * ==========================================================
- */
 
 user_pref(
     "browser.startup.firstrunSkipsHomepage",
@@ -1671,10 +1604,6 @@ user_pref(
 );
 
 USERJS_EOF
-
-# ==========================================================
-# PROXY
-# ==========================================================
 
 if [ "$PROXY_ENABLED" = "1" ]; then
 
@@ -1738,10 +1667,6 @@ USERJS_EOF
 
 fi
 
-# ==========================================================
-# NEW TAB
-# ==========================================================
-
 NEW_TAB_XPI="$BASE/config/lynx-newtab.xpi"
 
 if [ -f "$NEW_TAB_XPI" ]; then
@@ -1770,10 +1695,6 @@ POLICY_EOF
 
 fi
 
-# ==========================================================
-# CHROME CSS
-# ==========================================================
-
 mkdir -p "$PROFILE/chrome"
 
 cat > "$PROFILE/chrome/userChrome.css" <<'CSS_EOF'
@@ -1789,10 +1710,6 @@ cat > "$PROFILE/chrome/userChrome.css" <<'CSS_EOF'
 }
 CSS_EOF
 
-# ==========================================================
-# INFORMAÇÕES
-# ==========================================================
-
 echo
 echo "========================================="
 echo "            LYNX BROWSER"
@@ -1807,10 +1724,6 @@ echo
 echo "========================================="
 echo
 
-# ==========================================================
-# EXECUTAR
-# ==========================================================
-
 exec "$FIREFOX" \
     --no-remote \
     --profile "$PROFILE" \
@@ -1820,10 +1733,6 @@ exec "$FIREFOX" \
 LYNX_EOF
 
 chmod +x "$APP_DIR/lynx"
-
-# ==========================================================
-# VPN SCRIPT
-# ==========================================================
 
 cat > "$APP_DIR/vpn" <<'VPN_EOF'
 #!/usr/bin/env bash
@@ -1932,10 +1841,6 @@ VPN_EOF
 
 chmod +x "$APP_DIR/vpn"
 
-# ==========================================================
-# START.SH
-# ==========================================================
-
 cat > "$APP_DIR/start.sh" <<'START_EOF'
 #!/usr/bin/env bash
 
@@ -1947,10 +1852,6 @@ exec "$BASE/lynx" "$@"
 START_EOF
 
 chmod +x "$APP_DIR/start.sh"
-
-# ==========================================================
-# TESTE
-# ==========================================================
 
 cat > "$APP_DIR/test.sh" <<'TEST_EOF'
 #!/usr/bin/env bash
@@ -2007,10 +1908,6 @@ TEST_EOF
 
 chmod +x "$APP_DIR/test.sh"
 
-# ==========================================================
-# DESKTOP
-# ==========================================================
-
 echo "[8/8] Criando atalhos e documentação..."
 
 cat > "$APP_DIR/Lynx Browser.desktop" <<DESKTOP_EOF
@@ -2040,10 +1937,6 @@ Keywords=browser;internet;web;lynx;
 DESKTOP_EOF
 
 chmod +x "$APP_DIR/Lynx Browser.desktop"
-
-# ==========================================================
-# README
-# ==========================================================
 
 cat > "$APP_DIR/README.txt" <<'README_EOF'
 ====================================================
@@ -2127,10 +2020,6 @@ Verifique:
 ====================================================
 README_EOF
 
-# ==========================================================
-# EMPACOTAMENTO
-# ==========================================================
-
 echo
 echo "========================================="
 echo "          EMPACOTANDO LYNX"
@@ -2158,10 +2047,6 @@ echo
 
 du -h "$OUT"
 
-# ==========================================================
-# INSTALAÇÃO LOCAL
-# ==========================================================
-
 echo
 echo "Instalando localmente..."
 
@@ -2169,10 +2054,6 @@ cd "$ROOT"
 
 tar \
     -xzf "$OUT"
-
-# ==========================================================
-# FINAL
-# ==========================================================
 
 echo
 echo "========================================="
@@ -2193,9 +2074,5 @@ echo "  $LOCAL_INSTALL/test.sh"
 echo
 echo "========================================="
 echo
-
-# ==========================================================
-# INICIAR
-# ==========================================================
 
 exec "$LOCAL_INSTALL/start.sh"
