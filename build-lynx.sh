@@ -157,8 +157,6 @@ if [ ! -f "$PWD/lynx-logo.png" ]; then
     curl -L "https://raw.githubusercontent.com/Pax0102/img/main/1.png" -o "$PWD/lynx-logo.png"
 fi
 
-fi
-
 if [ ! -s "$LOGO" ]; then
 
     echo "ERRO: logo inválida ou download falhou."
