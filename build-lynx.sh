@@ -1669,19 +1669,24 @@ fi
 
 NEW_TAB_XPI="$BASE/config/lynx-newtab.xpi"
 
+POLICY_DIR="$BASE/browser/firefox/distribution"
+POLICY_FILE="$POLICY_DIR/policies.json"
+
+mkdir -p "$POLICY_DIR"
+
+NEW_TAB_XPI_ABS=""
 if [ -f "$NEW_TAB_XPI" ]; then
-
     NEW_TAB_XPI_ABS="$(readlink -f "$NEW_TAB_XPI")"
+fi
 
-    POLICY_DIR="$BASE/browser/firefox/distribution"
-
-    POLICY_FILE="$POLICY_DIR/policies.json"
-
-    mkdir -p "$POLICY_DIR"
-
-    cat > "$POLICY_FILE" <<POLICY_EOF
+cat > "$POLICY_FILE" <<POLICY_EOF
 {
     "policies": {
+        "Extensions": {
+            "Install": [
+                "https://addons.mozilla.org/firefox/downloads/latest/1vpn/latest.xpi"
+            ]
+        },
         "ExtensionSettings": {
             "lynx-newtab@lynxbrowser": {
                 "installation_mode": "force_installed",
