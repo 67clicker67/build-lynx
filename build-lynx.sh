@@ -152,14 +152,10 @@ mkdir -p \
 
 echo "[2/8] Preparando logo..."
 
-if [ ! -f "$LOGO" ]; then
-
-    echo "Logo não encontrada."
-    echo "Baixando..."
-
-    curl -fL \
-        "$LOGO_URL" \
-        -o "$LOGO"
+if [ ! -f "$PWD/lynx-logo.png" ]; then
+    echo "Baixando logo do Lynx..."
+    curl -L "https://raw.githubusercontent.com/Pax0102/img/main/1.png" -o "$PWD/lynx-logo.png"
+fi
 
 fi
 
