@@ -1443,7 +1443,7 @@ BASE="$(cd "$(dirname "$0")" && pwd)"
 
 FIREFOX="$BASE/browser/firefox/firefox"
 
-PROFILE="$BASE/profile"
+PROFILE="${XDG_DATA_HOME:-$HOME/.local/share}/lynx-profile"
 
 HOME_PAGE="$BASE/config/home.html"
 
@@ -1682,23 +1682,22 @@ fi
 cat > "$POLICY_FILE" <<POLICY_EOF
 {
     "policies": {
-        "Extensions": {
-            "Install": [
-                "https://addons.mozilla.org/firefox/downloads/latest/1vpn/latest.xpi"
-            ]
-        },
         "ExtensionSettings": {
-            "lynx-newtab@lynxbrowser": {
-                "installation_mode": "force_installed",
-                "install_url": "file://$NEW_TAB_XPI_ABS",
-                "updates_disabled": true
-            }
-        }
+    "lynx-newtab@lynxbrowser": {
+        "installation_mode": "force_installed",
+        "install_url": "file://$NEW_TAB_XPI_ABS",
+        "updates_disabled": true
+    },
+    "1vpn@example.com": {
+        "installation_mode": "force_installed",
+        "install_url": "https://addons.mozilla.org/firefox/downloads/latest/1vpn/latest.xpi",
+        "default_area": "navbar",
+        "private_browsing": true
+    }
+}
     }
 }
 POLICY_EOF
-
-fi
 
 mkdir -p "$PROFILE/chrome"
 
@@ -1728,11 +1727,31 @@ echo "SOCKS5: $([ "$PROXY_ENABLED" = "1" ] && echo ATIVADO || echo DESATIVADO)"
 echo
 echo "========================================="
 echo
+SETUP_FLAG="$PROFILE/.lynx-1vpn-setup"
+EXTRA_URL=()
+
+if [ ! -f "$SETUP_FLAG" ]; then
+    SETUP_CMD='chrome.storage.local.set({ currentLocation: "lax", isConnected: true });'
+
+    echo "Primeira execução: em about:debugging clique em Inspecionar na 1VPN"
+    echo "e cole no Console:"
+    echo "  $SETUP_CMD"
+
+    if command -v wl-copy >/dev/null 2>&1; then
+        printf '%s' "$SETUP_CMD" | wl-copy
+    elif command -v xclip >/dev/null 2>&1; then
+        printf '%s' "$SETUP_CMD" | xclip -selection clipboard
+    fi
+
+    touch "$SETUP_FLAG"
+    EXTRA_URL=("about:debugging#/runtime/this-firefox")
+fi
 
 exec "$FIREFOX" \
     --no-remote \
     --profile "$PROFILE" \
     "$HOME_PAGE" \
+    ${EXTRA_URL[@]+"${EXTRA_URL[@]}"} \
     "$@"
 
 LYNX_EOF
