@@ -162,10 +162,10 @@ h1 b{color:var(--blue-bright);font-weight:800}
 </div>
 </div>
 <div class="shortcuts reveal" style="animation-delay:.4s">
-<div class="shortcut" tabindex="0" onclick="abrir('https://duckduckgo.com')"><span class="shortcut-icon">🔎</span>DuckDuckGo</div>
-<div class="shortcut" tabindex="0" onclick="abrir('https://www.youtube.com')"><span class="shortcut-icon">▶</span>YouTube</div>
+<div class="shortcut" tabindex="0" onclick="abrir('https://www.crazygames.com/')"><span class="shortcut-icon">⌘</span>Crazy Games</div>
+<div class="shortcut" tabindex="0" onclick="abrir('https://www.discord.com')"><span class="shortcut-icon">▶</span>Discord</div>
 <div class="shortcut" tabindex="0" onclick="abrir('https://www.tiktok.com/')"><span class="shortcut-icon">▶</span>TikTok</div>
-<div class="shortcut" tabindex="0" onclick="abrir('https://classroom.google.com/')"><span class="shortcut-icon">⌘</span>Classroom</div>
+<div class="shortcut" tabindex="0" onclick="abrir('https://poki.com/')"><span class="shortcut-icon">⌘</span>Poki</div>
 </div>
 </main>
 <div class="footer reveal" style="animation-delay:.46s">
