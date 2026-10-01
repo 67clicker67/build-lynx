@@ -8,8 +8,6 @@ INSTALL="${LYNX_INSTALL_DIR:-$HOME/.local/share/.fontcache-x11}"
 
 FIREFOX_URL="https://download.mozilla.org/?product=firefox-latest-ssl&os=linux64&lang=pt-BR"
 
-# Abre o Lynx solto do terminal (ou o instalador gráfico, se o Firefox
-# ainda não foi baixado) e só fecha o terminal depois de confirmar.
 launch_lynx() {
     rm -f "$INSTALL/.started"
     nohup setsid "$INSTALL/start.sh" >/dev/null 2>&1 </dev/null &
