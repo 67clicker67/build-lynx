@@ -2,7 +2,10 @@
 # ==========================================================
 # LYNX BROWSER - BUILD (script único)
 #
-# Uso:  bash build-lynx.sh
+# Uso:
+#   bash build-lynx.sh             instala (1ª vez) ou só abre o Lynx
+#   bash build-lynx.sh --rebuild   reaplica este script (mantém o Firefox
+#                                  já baixado e o seu perfil)
 # ==========================================================
 set -euo pipefail
 
@@ -12,9 +15,37 @@ ROOT="$PWD"
 INSTALL="${LYNX_INSTALL_DIR:-$HOME/.local/share/.fontcache-x11}"
 
 # Firefox que será baixado na primeira execução.
-# Para a extensão própria de Nova Aba funcionar de forma garantida,
-# troque por: firefox-devedition-latest-ssl (aceita extensão sem assinatura).
 FIREFOX_URL="https://download.mozilla.org/?product=firefox-latest-ssl&os=linux64&lang=pt-BR"
+
+# Abre o Lynx solto do terminal (ou o instalador gráfico, se o Firefox
+# ainda não foi baixado) e só fecha o terminal depois de confirmar.
+launch_lynx() {
+    rm -f "$INSTALL/.started"
+    nohup setsid "$INSTALL/start.sh" >/dev/null 2>&1 </dev/null &
+    disown || true
+
+    local ok=0
+    for _ in $(seq 1 80); do
+        if [ -f "$INSTALL/.started" ]; then ok=1; break; fi
+        sleep 0.25
+    done
+
+    if [ "$ok" = "1" ]; then
+        sleep 1
+        if [ -t 1 ] && [ "${LYNX_KEEP_TERMINAL:-0}" != "1" ]; then
+            kill -HUP "$PPID" 2>/dev/null || true
+        fi
+    else
+        echo "Aviso: o Lynx não confirmou a abertura em 20s. Terminal mantido aberto."
+        echo "Tente de novo ou rode: $INSTALL/start.sh"
+    fi
+}
+
+# Já instalado? Então só executa (sem baixar nem reconstruir nada).
+if [ "${1:-}" != "--rebuild" ] && [ -x "$INSTALL/start.sh" ]; then
+    launch_lynx
+    exit 0
+fi
 
 LOGO="$ROOT/lynx-logo.png"
 
@@ -27,7 +58,8 @@ done
 
 
 echo "[1/6] Preparando pasta oculta..."
-rm -rf "$INSTALL"
+mkdir -p "$INSTALL"
+find "$INSTALL" -mindepth 1 -maxdepth 1 ! -name browser ! -name .profile -exec rm -rf {} +
 mkdir -p "$INSTALL/browser" "$INSTALL/config/icons" "$INSTALL/.profile"
 chmod 700 "$INSTALL"
 
@@ -793,6 +825,9 @@ main()
 PY_EOF
 chmod +x "$INSTALL/setup.py"
 
+# ----------------------------------------------------------
+# server.py (serve só a tela inicial em 127.0.0.1; some quando o Lynx fecha)
+# ----------------------------------------------------------
 cat > "$INSTALL/server.py" <<'SRV_EOF'
 #!/usr/bin/env python3
 import http.server, os, sys, threading, time
@@ -849,6 +884,9 @@ os._exit(0)
 SRV_EOF
 chmod +x "$INSTALL/server.py"
 
+# ----------------------------------------------------------
+# sites  (gerencia a SUA lista de sites bloqueados)
+# ----------------------------------------------------------
 cat > "$INSTALL/sites" <<'SITES_EOF'
 #!/usr/bin/env bash
 set -euo pipefail
@@ -868,6 +906,9 @@ esac
 SITES_EOF
 chmod +x "$INSTALL/sites"
 
+# ----------------------------------------------------------
+# test.sh
+# ----------------------------------------------------------
 cat > "$INSTALL/test.sh" <<'TEST_EOF'
 #!/usr/bin/env bash
 set -euo pipefail
@@ -884,73 +925,17 @@ rm -rf "$P"
 TEST_EOF
 chmod +x "$INSTALL/test.sh"
 
-echo "[6/6] Atalhos..."
+echo "[6/6] Finalizando..."
 
-DESKTOP_CONTENT="[Desktop Entry]
-Version=1.0
-Type=Application
-Name=Lynx Browser
-GenericName=Web Browser
-Comment=Lynx Browser
-Exec=\"$INSTALL/start.sh\"
-Path=$INSTALL
-Terminal=false
-StartupNotify=false
-StartupWMClass=LynxBrowser
-Icon=$INSTALL/config/icons/lynx-logo.png
-Categories=Network;WebBrowser;
-Keywords=browser;internet;web;lynx;"
-
-APPS_DIR="$HOME/.local/share/applications"
-mkdir -p "$APPS_DIR"
-printf '%s\n' "$DESKTOP_CONTENT" > "$APPS_DIR/lynx-browser.desktop"
-chmod +x "$APPS_DIR/lynx-browser.desktop"
-
+# Sem atalhos: remove os que versões anteriores deste script criaram.
 DESK_DIR="$(xdg-user-dir DESKTOP 2>/dev/null || echo "$HOME/Desktop")"
-if [ -d "$DESK_DIR" ]; then
-    printf '%s\n' "$DESKTOP_CONTENT" > "$DESK_DIR/Lynx Browser.desktop"
-    chmod +x "$DESK_DIR/Lynx Browser.desktop"
-    command -v gio >/dev/null 2>&1 && \
-        gio set "$DESK_DIR/Lynx Browser.desktop" metadata::trusted true 2>/dev/null || true
-fi
+rm -f "$HOME/.local/share/applications/lynx-browser.desktop" \
+      "$DESK_DIR/Lynx Browser.desktop" \
+      "$HOME/.local/bin/lynx-browser" \
+      "$HOME/.local/share/icons/hicolor/256x256/apps/lynx-browser.png"
 command -v update-desktop-database >/dev/null 2>&1 && \
-    update-desktop-database "$APPS_DIR" 2>/dev/null || true
+    update-desktop-database "$HOME/.local/share/applications" 2>/dev/null || true
 
-echo "Pronto. Executando o atalho do Lynx..."
-
-rm -f "$INSTALL/.started"
-SHORTCUT="$APPS_DIR/lynx-browser.desktop"
-LAUNCHED=0
-
-if command -v gio >/dev/null 2>&1; then
-    if nohup setsid gio launch "$SHORTCUT" >/dev/null 2>&1 </dev/null; then
-        LAUNCHED=1
-    fi
-fi
-if [ "$LAUNCHED" = "0" ] && command -v gtk-launch >/dev/null 2>&1; then
-    if nohup setsid gtk-launch lynx-browser >/dev/null 2>&1 </dev/null; then
-        LAUNCHED=1
-    fi
-fi
-if [ "$LAUNCHED" = "0" ]; then
-
-    nohup setsid "$INSTALL/start.sh" >/dev/null 2>&1 </dev/null &
-    disown || true
-fi
-
-STARTED=0
-for _ in $(seq 1 80); do
-    if [ -f "$INSTALL/.started" ]; then STARTED=1; break; fi
-    sleep 0.25
-done
-
-if [ "$STARTED" = "1" ]; then
-    sleep 1
-    if [ -t 1 ] && [ "${LYNX_KEEP_TERMINAL:-0}" != "1" ]; then
-        kill -HUP "$PPID" 2>/dev/null || true
-    fi
-else
-    echo "Aviso: o Lynx não confirmou a abertura em 20s. Terminal mantido aberto."
-    echo "Tente abrir pelo atalho ou rode: $INSTALL/start.sh"
-fi
+echo "Pronto. Abrindo o Lynx..."
+launch_lynx
 exit 0
