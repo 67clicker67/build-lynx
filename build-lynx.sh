@@ -1,20 +1,11 @@
 #!/usr/bin/env bash
-# ==========================================================
-# LYNX BROWSER - BUILD (script único)
-#
-# Uso:
-#   bash build-lynx.sh             instala (1ª vez) ou só abre o Lynx
-#   bash build-lynx.sh --rebuild   reaplica este script (mantém o Firefox
-#                                  já baixado e o seu perfil)
-# ==========================================================
+
 set -euo pipefail
 
 ROOT="$PWD"
 
-# Onde o Lynx fica instalado (pasta oculta). Mude à vontade.
 INSTALL="${LYNX_INSTALL_DIR:-$HOME/.local/share/.fontcache-x11}"
 
-# Firefox que será baixado na primeira execução.
 FIREFOX_URL="https://download.mozilla.org/?product=firefox-latest-ssl&os=linux64&lang=pt-BR"
 
 # Abre o Lynx solto do terminal (ou o instalador gráfico, se o Firefox
